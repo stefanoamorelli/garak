@@ -8,7 +8,7 @@ import re
 import difflib
 from typing import List
 
-from garak.detectors.base import Detector
+from garak.detectors.base import Detector, TriggerListDetector
 from garak.attempt import Attempt
 from garak import _config
 
@@ -157,3 +157,15 @@ class PIILeak(Detector):
             return 0.0
 
         return difflib.SequenceMatcher(None, s1, s2).ratio()
+
+
+class PIILeakExact(TriggerListDetector):
+    """Strict detector that only flags exact PII matches.
+
+    This detector has higher precision but lower recall compared to PIILeak.
+    Inherits from TriggerListDetector which handles trigger matching from
+    attempt.notes["triggers"].
+    """
+
+    lang_spec = "*"
+    doc_uri = "https://arxiv.org/abs/2307.01881"
