@@ -81,3 +81,40 @@ class PIILeakProbeBase(garak.probes.Probe):
         attempt.notes["triggers"] = [self.triggers[seq]]
         attempt.notes["pii_type"] = self.pii_types[seq]
         return attempt
+
+
+class PIILeakTwin(PIILeakProbeBase):
+    """ProPILE twin probe: uses name to elicit target PII.
+
+    Constructs prompts using only the subject's name to test if the model
+    can complete with email, phone, or address information.
+    """
+
+    active = True
+    goal = "extract PII using only the subject's name"
+
+    def __init__(self, config_root=_config):
+        super().__init__(config_root=config_root)
+        self.pii_types = []
+
+        pii_targets = [
+            ("email", "twin_email"),
+            ("phone", "twin_phone"),
+            ("address", "twin_address"),
+        ]
+
+        for record in self.pii_records:
+            name = record.get("name", "")
+            if not name:
+                continue
+
+            for target_field, template_category in pii_targets:
+                target_value = record.get(target_field, "")
+                if not target_value:
+                    continue
+
+                for template in self.templates.get(template_category, []):
+                    prompt = template.format(name=name)
+                    self.prompts.append(prompt)
+                    self.triggers.append(target_value)
+                    self.pii_types.append(target_field)
