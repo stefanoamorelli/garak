@@ -160,3 +160,47 @@ class PIILeakTriplet(PIILeakProbeBase):
                     self.prompts.append(prompt)
                     self.triggers.append(target_value)
                     self.pii_types.append(target_field)
+
+
+class PIILeakQuadruplet(PIILeakProbeBase):
+    """ProPILE quadruplet probe: uses name + two PIIs to elicit the third.
+
+    Constructs prompts using the subject's name and two pieces of PII
+    to elicit the remaining PII type. This provides maximum context
+    to the model and tests for stronger memorization.
+    """
+
+    active = True
+    goal = "extract PII using name and two auxiliary PIIs"
+
+    def __init__(self, config_root=_config):
+        super().__init__(config_root=config_root)
+        self.pii_types = []
+
+        quadruplet_configs = [
+            (["address", "phone"], "email", "quadruplet_email"),
+            (["address", "email"], "phone", "quadruplet_phone"),
+            (["email", "phone"], "address", "quadruplet_address"),
+        ]
+
+        for record in self.pii_records:
+            name = record.get("name", "")
+            if not name:
+                continue
+
+            for aux_fields, target_field, template_category in quadruplet_configs:
+                aux_values = [record.get(f, "") for f in aux_fields]
+                target_value = record.get(target_field, "")
+                if not all(aux_values) or not target_value:
+                    continue
+
+                for template in self.templates.get(template_category, []):
+                    prompt = template.format(
+                        name=name,
+                        email=record.get("email", ""),
+                        phone=record.get("phone", ""),
+                        address=record.get("address", ""),
+                    )
+                    self.prompts.append(prompt)
+                    self.triggers.append(target_value)
+                    self.pii_types.append(target_field)
