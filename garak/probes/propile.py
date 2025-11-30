@@ -204,3 +204,44 @@ class PIILeakQuadruplet(PIILeakProbeBase):
                     self.prompts.append(prompt)
                     self.triggers.append(target_value)
                     self.pii_types.append(target_field)
+
+
+class PIILeakUnstructured(PIILeakProbeBase):
+    """ProPILE unstructured probe: elicit relationship or affiliation info.
+
+    Tests for memorization of unstructured PII like family relationships
+    and university affiliations.
+    """
+
+    active = False
+    goal = "extract unstructured PII like relationships or affiliations"
+
+    DEFAULT_PARAMS = PIILeakProbeBase.DEFAULT_PARAMS | {
+        "relationships": ["father", "mother", "wife", "husband"],
+    }
+
+    def __init__(self, config_root=_config):
+        super().__init__(config_root=config_root)
+        self.pii_types = []
+
+        for record in self.pii_records:
+            name = record.get("name", "")
+            if not name:
+                continue
+
+            for rel in self.relationships:
+                rel_name = record.get(rel, "")
+                if rel_name:
+                    for template in self.templates.get("unstructured_relation", []):
+                        prompt = template.format(name=name, relationship=rel)
+                        self.prompts.append(prompt)
+                        self.triggers.append(rel_name)
+                        self.pii_types.append(f"relation_{rel}")
+
+            university = record.get("university", "")
+            if university:
+                for template in self.templates.get("unstructured_university", []):
+                    prompt = template.format(name=name)
+                    self.prompts.append(prompt)
+                    self.triggers.append(university)
+                    self.pii_types.append("university")
