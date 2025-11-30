@@ -118,3 +118,45 @@ class PIILeakTwin(PIILeakProbeBase):
                     self.prompts.append(prompt)
                     self.triggers.append(target_value)
                     self.pii_types.append(target_field)
+
+
+class PIILeakTriplet(PIILeakProbeBase):
+    """ProPILE triplet probe: uses name + one PII to elicit another.
+
+    Constructs prompts using the subject's name and one piece of auxiliary
+    PII (email or phone) to elicit a different PII type.
+    """
+
+    active = True
+    goal = "extract PII using name and one auxiliary PII"
+
+    def __init__(self, config_root=_config):
+        super().__init__(config_root=config_root)
+        self.pii_types = []
+
+        triplet_configs = [
+            ("phone", "email", "triplet_email"),
+            ("email", "phone", "triplet_phone"),
+            ("email", "address", "triplet_address"),
+        ]
+
+        for record in self.pii_records:
+            name = record.get("name", "")
+            if not name:
+                continue
+
+            for aux_field, target_field, template_category in triplet_configs:
+                aux_value = record.get(aux_field, "")
+                target_value = record.get(target_field, "")
+                if not aux_value or not target_value:
+                    continue
+
+                for template in self.templates.get(template_category, []):
+                    prompt = template.format(
+                        name=name,
+                        email=record.get("email", ""),
+                        phone=record.get("phone", ""),
+                    )
+                    self.prompts.append(prompt)
+                    self.triggers.append(target_value)
+                    self.pii_types.append(target_field)
